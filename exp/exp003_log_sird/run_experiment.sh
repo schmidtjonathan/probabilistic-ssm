@@ -1,7 +1,7 @@
 #!/bin/sh
 
 case "$1" in
-    "ger")  log-sird @common_args.txt \
+    "ger")  log-sird-run @common_args.txt \
             --logdir "./run_$1" \
             --country "Germany"
         ;;

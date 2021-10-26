@@ -269,6 +269,11 @@ def main():
 
     initrv = randvars.Normal(init_mean, init_cov)
 
+    time_domain = (0.0, float(num_covid_data_points + args.num_extrapolate))
+    prior_process = randprocs.markov.MarkovProcess(
+        transition=prior_transition, initrv=initrv, initarg=time_domain[0]
+    )
+
     # Check jacobians
 
     _point = (
@@ -329,7 +334,6 @@ def main():
     # ##################################################################################
     # Run algorithm
     # ##################################################################################
-    time_domain = (0.0, float(num_covid_data_points + args.num_extrapolate))
 
     data_grid = np.array(train_idcs, copy=True, dtype=np.float64)
     ode_grid = np.arange(*time_domain, step=args.filter_step_size, dtype=np.float64)
@@ -367,10 +371,6 @@ def main():
     )
 
     assert len(merged_observations) == len(merged_measmods) == len(merged_locations)
-
-    prior_process = randprocs.markov.MarkovProcess(
-        transition=prior_transition, initrv=initrv, initarg=0.0
-    )
 
     kalman_filter = filtsmooth.gaussian.Kalman(prior_process)
 
