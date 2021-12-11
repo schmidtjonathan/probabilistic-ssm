@@ -4,14 +4,28 @@
 
 Most of what makes up the method presented in the paper is implemented in [ProbNum](http://www.probabilistic-numerics.org/en/latest/).
 Since ProbNum is under development and thus subject to regular changes, the paper code has yet to be adapted in parts.
-The experiments shown in the paper will be added consecutively over time (until the start of the NeurIPS 2021 conference, at the latest).
 
 
 ## Paper
 
-_"A Probabilistic State Space Model for Joint Inference from Differential Equations and Data"_
+Accepted (Poster) at NeurIPS 2021:
 
-* arXiv: [https://arxiv.org/abs/2103.10153](https://arxiv.org/abs/2103.10153)
+[NeurIPS 2021 Proceedings](https://papers.nips.cc/paper/2021/hash/6734fa703f6633ab896eecbdfad8953a-Abstract.html)
+(or on [OpenReview](https://openreview.net/forum?id=7e4FLufwij) ).
+
+
+Please cite this work as
+
+```
+@inproceedings{
+    schmidt2021a,
+    title={A Probabilistic State Space Model for Joint Inference from Differential Equations and Data},
+    author={Jonathan Schmidt and Nicholas Kr{\"a}mer and Philipp Hennig},
+    booktitle={Thirty-Fifth Conference on Neural Information Processing Systems},
+    year={2021},
+    url={https://openreview.net/forum?id=7e4FLufwij}
+}
+```
 
 
 ## Install
