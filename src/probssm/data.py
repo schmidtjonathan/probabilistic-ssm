@@ -1,4 +1,5 @@
 import functools
+import logging
 from datetime import timedelta
 
 import numpy as np
@@ -63,6 +64,10 @@ def load_COVID_data(country, num_data_points=None):
 
     date_range_x = np.array(
         [day_zero + timedelta(int(xday)) for xday in days_from_start]
+    )
+
+    logging.info(
+        f"Data ranges from {date_range_x[0]:%d, %b %Y} to {date_range_x[-1 if num_data_points is None else num_data_points]:%d, %b %Y}."
     )
 
     D_data = deaths_cumulative

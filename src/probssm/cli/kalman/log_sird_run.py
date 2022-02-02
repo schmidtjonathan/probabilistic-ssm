@@ -2,6 +2,7 @@ import argparse
 import functools
 import logging
 import pathlib
+import time
 from datetime import datetime
 
 import numpy as np
@@ -10,13 +11,12 @@ import probssm
 import scipy.linalg
 import scipy.special
 from probnum import filtsmooth, problems, randprocs, randvars
-from probnum.problems import TimeSeriesRegressionProblem
 
 from ._likelihoods import LogSIRDLikelihood
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(levelname)s - log-sird - %(message)s",
+    format=">>> %(message)s",
 )
 
 
@@ -109,7 +109,7 @@ def main():
 
     # COVID-data
     day_zero, date_range_x, SIRD_data, population = probssm.data.load_COVID_data(
-        country="Germany", num_data_points=500
+        country="Germany", num_data_points=556
     )
 
     num_covid_data_points = SIRD_data.shape[0]
@@ -361,8 +361,8 @@ def main():
         else:
             pass
 
-    print(f"{data_idx} / {merged_locations.size} data locations")
-    print(f"{ode_idx} / {merged_locations.size} ODE locations")
+    logging.info(f"{data_idx} / {merged_locations.size} data locations")
+    logging.info(f"{ode_idx} / {merged_locations.size} ODE locations")
 
     merged_regression_problem = problems.TimeSeriesRegressionProblem(
         observations=merged_observations,
@@ -374,7 +374,14 @@ def main():
 
     kalman_filter = filtsmooth.gaussian.Kalman(prior_process)
 
+    logging.info("Computing smoothing posterior ...")
+    start_filtsmooth = time.time()
     posterior, _ = kalman_filter.filtsmooth(merged_regression_problem)
+    time_filtsmooth = time.time() - start_filtsmooth
+
+    logging.info(
+        f"\033[1mFiltering + Smoothing took {time_filtsmooth:.2f} seconds.\033[0m"
+    )
 
     _posterior_save_file = log_dir / "smoothing_posterior_first.npz"
 
@@ -385,14 +392,18 @@ def main():
     )
 
     if args.num_samples is not None and args.num_samples > 0:
-        logging.info(f"Drawing {args.num_samples} samples from posterior.")
+        logging.info(f"Drawing {args.num_samples} samples from posterior...")
 
+        start_sampling = time.time()
         samples = posterior.sample(rng=rng, size=args.num_samples)
+        time_sampling = time.time() - start_sampling
 
         _samples_save_file = log_dir / "posterior_samples.npy"
         np.save(_samples_save_file, samples)
 
         logging.info(f"Saved posterior samples to {_samples_save_file}.")
+
+    logging.info(f"\033[1mSampling took {time_sampling:.2f} seconds.\033[0m")
 
     logging.info("Computation done. Finalize")
 
