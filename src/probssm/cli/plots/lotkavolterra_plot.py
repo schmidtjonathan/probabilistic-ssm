@@ -6,9 +6,10 @@ import pathlib
 
 import matplotlib.pyplot as plt
 import numpy as np
-import probssm.plotting as ssmplot
 import scipy.special
 from matplotlib.legend_handler import HandlerTuple
+
+import probssm.plotting as ssmplot
 
 from ._style import *
 

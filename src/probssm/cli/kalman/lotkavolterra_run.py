@@ -5,15 +5,19 @@ from datetime import datetime
 
 import numpy as np
 import probnum as pn
-import probssm
 import scipy.linalg
 import scipy.special
-from probnum import _randomvariablelist, filtsmooth, problems, randprocs, randvars
-from probnumeval import timeseries as pn_eval_timeseries
-from probnumeval import utils as pn_eval_utils
+from probnum import filtsmooth, problems, randprocs, randvars
+
+import probssm
 from probssm.util import find_nearest, unions1d
 
 from ._likelihoods import LVLikelihood
+
+# from probnumeval import timeseries as pn_eval_timeseries
+# from probnumeval import utils as pn_eval_utils
+
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -309,16 +313,13 @@ def main():
 
     # ODE measurements
     measurement_matrix_ode = args.ode_measurement_cov * np.eye(STATE_DIM)
-    measurement_matrix_ode_chol_factor = np.sqrt(args.ode_measurement_cov)
+    measurement_noiserv_ode = randvars.Normal(mean=np.zeros(STATE_DIM), cov=measurement_matrix_ode)
     measurement_model_ode = randprocs.markov.discrete.NonlinearGaussian(
         input_dim=initrv.mean.size,
         output_dim=STATE_DIM,
-        state_trans_fun=ode_likelihood.measure_ode,
-        proc_noise_cov_mat_fun=lambda t: measurement_matrix_ode,
-        proc_noise_cov_cholesky_fun=(
-            lambda t: measurement_matrix_ode_chol_factor * np.eye(STATE_DIM)
-        ),
-        jacob_state_trans_fun=ode_likelihood.measure_ode_jacobian,
+        transition_fun=ode_likelihood.measure_ode,
+        noise_fun=lambda t: measurement_noiserv_ode,
+        transition_fun_jacobian=ode_likelihood.measure_ode_jacobian,
     )
 
     # EKF
@@ -335,10 +336,10 @@ def main():
         proc=X_PROCESS_NUM, coord=0
     ) @ prior_transition.proj2process(X_PROCESS_NUM)
 
+    measurement_noiserv_data = randvars.Normal(mean=np.zeros(OBSERVATION_DIM), cov=measurement_matrix_data)
     measurement_model_data = randprocs.markov.discrete.LTIGaussian(
-        state_trans_mat=proj_state_to_UV,
-        shift_vec=np.zeros((OBSERVATION_DIM,)),
-        proc_noise_cov_mat=measurement_matrix_data,
+        transition_matrix=proj_state_to_UV,
+        noise=measurement_noiserv_data,
         forward_implementation=forward_implementation,
         backward_implementation=backward_implementation,
     )
@@ -577,7 +578,7 @@ def main():
         )
 
         param_rvs = [(proj2coords @ proj2procs @ rv) for rv in post(locs)]
-        return _randomvariablelist._RandomVariableList(param_rvs)
+        return param_rvs
 
     # ALL PARAMS
 
@@ -650,56 +651,56 @@ def main():
         -1,
     )
 
-    print(
-        f"Chi2 95 percentile: {pn_eval_utils.chi2_confidence_intervals(4, perc=0.95)}"
-    )
+    # print(
+    #     f"Chi2 95 percentile: {pn_eval_utils.chi2_confidence_intervals(4, perc=0.95)}"
+    # )
 
-    # CHI2 in Log space ----------------------------------------------------------------
-    # First
-    chi2_param_first_logspace = pn_eval_timeseries.anees(
-        approximate_solution=lambda x: param_approx_first_logspace,
-        reference_solution=lambda x: stacked_sampled_params_logspace,
-        locations=dense_grid,
-    )
-    logging.info(f"ANEES statistic first (logspace): {chi2_param_first_logspace}")
+    # # CHI2 in Log space ----------------------------------------------------------------
+    # # First
+    # chi2_param_first_logspace = pn_eval_timeseries.anees(
+    #     approximate_solution=lambda x: param_approx_first_logspace,
+    #     reference_solution=lambda x: stacked_sampled_params_logspace,
+    #     locations=dense_grid,
+    # )
+    # logging.info(f"ANEES statistic first (logspace): {chi2_param_first_logspace}")
 
-    # MAP
-    chi2_param_map_logspace = pn_eval_timeseries.anees(
-        approximate_solution=lambda x: param_approx_map_logspace,
-        reference_solution=lambda x: stacked_sampled_params_logspace,
-        locations=dense_grid,
-    )
-    logging.info(f"ANEES statistic MAP (logspace): {chi2_param_map_logspace}")
+    # # MAP
+    # chi2_param_map_logspace = pn_eval_timeseries.anees(
+    #     approximate_solution=lambda x: param_approx_map_logspace,
+    #     reference_solution=lambda x: stacked_sampled_params_logspace,
+    #     locations=dense_grid,
+    # )
+    # logging.info(f"ANEES statistic MAP (logspace): {chi2_param_map_logspace}")
 
-    # RMSE in Log space ----------------------------------------------------------------
-    # First
+    # # RMSE in Log space ----------------------------------------------------------------
+    # # First
 
-    rmse_param_first_logspace = np.linalg.norm(
-        param_approx_first_mean_logspace - stacked_sampled_params_logspace
-    ) / np.sqrt(sampled_prior_beta_t.size)
+    # rmse_param_first_logspace = np.linalg.norm(
+    #     param_approx_first_mean_logspace - stacked_sampled_params_logspace
+    # ) / np.sqrt(sampled_prior_beta_t.size)
 
-    logging.info(f"RMSE first (logspace): {rmse_param_first_logspace}")
+    # logging.info(f"RMSE first (logspace): {rmse_param_first_logspace}")
 
-    # MAP
-    rmse_param_map_logspace = np.linalg.norm(
-        param_approx_map_mean_logspace - stacked_sampled_params_logspace
-    ) / np.sqrt(sampled_prior_beta_t.size)
-    logging.info(f"RMSE MAP (logspace): {rmse_param_map_logspace}")
+    # # MAP
+    # rmse_param_map_logspace = np.linalg.norm(
+    #     param_approx_map_mean_logspace - stacked_sampled_params_logspace
+    # ) / np.sqrt(sampled_prior_beta_t.size)
+    # logging.info(f"RMSE MAP (logspace): {rmse_param_map_logspace}")
 
-    # RMSE in Lin space ----------------------------------------------------------------
-    # First
+    # # RMSE in Lin space ----------------------------------------------------------------
+    # # First
 
-    rmse_param_first_linspace = np.linalg.norm(
-        param_approx_first_mean_linspace - stacked_sampled_params_linspace
-    ) / np.sqrt(sampled_prior_beta_t.size)
+    # rmse_param_first_linspace = np.linalg.norm(
+    #     param_approx_first_mean_linspace - stacked_sampled_params_linspace
+    # ) / np.sqrt(sampled_prior_beta_t.size)
 
-    logging.info(f"RMSE first (linspace): {rmse_param_first_linspace}")
+    # logging.info(f"RMSE first (linspace): {rmse_param_first_linspace}")
 
-    # MAP
-    rmse_param_map_linspace = np.linalg.norm(
-        param_approx_map_mean_linspace - stacked_sampled_params_linspace
-    ) / np.sqrt(sampled_prior_beta_t.size)
-    logging.info(f"RMSE MAP (linspace): {rmse_param_map_linspace}")
+    # # MAP
+    # rmse_param_map_linspace = np.linalg.norm(
+    #     param_approx_map_mean_linspace - stacked_sampled_params_linspace
+    # ) / np.sqrt(sampled_prior_beta_t.size)
+    # logging.info(f"RMSE MAP (linspace): {rmse_param_map_linspace}")
 
     # ##################################################################################
     # Finalize
@@ -738,16 +739,16 @@ def main():
     np.savez(_data_info_save_file, **data_dict)
     logging.info(f"Saved data info to {_data_info_save_file}.")
 
-    info = {
-        "chi2_param_first_logspace": chi2_param_first_logspace,
-        "chi2_param_map_logspace": chi2_param_map_logspace,
-        "rmse_param_first_logspace": rmse_param_first_logspace,
-        "rmse_param_map_logspace": rmse_param_map_logspace,
-        "rmse_param_first_linspace": rmse_param_first_linspace,
-        "rmse_param_map_linspace": rmse_param_map_linspace,
-    }
+    # info = {
+    #     "chi2_param_first_logspace": chi2_param_first_logspace,
+    #     "chi2_param_map_logspace": chi2_param_map_logspace,
+    #     "rmse_param_first_logspace": rmse_param_first_logspace,
+    #     "rmse_param_map_logspace": rmse_param_map_logspace,
+    #     "rmse_param_first_linspace": rmse_param_first_linspace,
+    #     "rmse_param_map_linspace": rmse_param_map_linspace,
+    # }
     _args_save_file = log_dir / "info.json"
-    probssm.args_to_json(_args_save_file, args=args, kwargs=info)
+    probssm.args_to_json(_args_save_file, args=args, kwargs={})
     logging.info(f"Saved info dict to {_args_save_file}.")
 
 
