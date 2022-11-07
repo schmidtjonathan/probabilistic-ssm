@@ -7,10 +7,11 @@ from datetime import datetime
 
 import numpy as np
 import probnum as pn
-import probssm
 import scipy.linalg
 import scipy.special
 from probnum import filtsmooth, problems, randprocs, randvars
+
+import probssm
 
 from ._likelihoods import LogSIRDLikelihood
 
@@ -293,16 +294,14 @@ def main():
 
     # ODE measurements
     measurement_matrix_ode = args.ode_measurement_cov * np.eye(STATE_DIM)
-    measurement_matrix_ode_chol_factor = np.sqrt(args.ode_measurement_cov)
+    # measurement_matrix_ode_chol_factor = np.sqrt(args.ode_measurement_cov)
+    measurement_noiserv_ode = randvars.Normal(mean=np.zeros(STATE_DIM), cov=measurement_matrix_ode)
     measurement_model_ode = randprocs.markov.discrete.NonlinearGaussian(
         input_dim=initrv.mean.size,
         output_dim=STATE_DIM,
-        state_trans_fun=ode_likelihood.measure_ode,
-        proc_noise_cov_mat_fun=lambda t: measurement_matrix_ode,
-        proc_noise_cov_cholesky_fun=(
-            lambda t: measurement_matrix_ode_chol_factor * np.eye(STATE_DIM)
-        ),
-        jacob_state_trans_fun=ode_likelihood.measure_ode_jacobian,
+        transition_fun=ode_likelihood.measure_ode,
+        noise_fun=lambda t: measurement_noiserv_ode,
+        transition_fun_jacobian=ode_likelihood.measure_ode_jacobian,
     )
 
     # EKF
@@ -314,19 +313,15 @@ def main():
 
     # Data measurements
     measurement_matrix_data = args.data_measurement_cov * np.eye(OBSERVATION_DIM)
-    measurement_matrix_data_cholesky = np.sqrt(args.data_measurement_cov) * np.eye(
-        OBSERVATION_DIM
-    )
     proj_state_to_IRD = (
         prior_transition.proj2coord(proc=X_PROCESS_NUM, coord=0)
         @ prior_transition.proj2process(X_PROCESS_NUM)
     )[1:, :]
 
+    measurement_noiserv_data = randvars.Normal(mean=np.zeros(OBSERVATION_DIM), cov=measurement_matrix_data)
     measurement_model_data = randprocs.markov.discrete.LTIGaussian(
-        state_trans_mat=proj_state_to_IRD,
-        shift_vec=np.zeros((OBSERVATION_DIM,)),
-        proc_noise_cov_mat=measurement_matrix_data,
-        proc_noise_cov_cholesky=measurement_matrix_data_cholesky,
+        transition_matrix=proj_state_to_IRD,
+        noise=measurement_noiserv_data,
         forward_implementation=forward_implementation,
         backward_implementation=backward_implementation,
     )
